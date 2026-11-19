@@ -1,0 +1,1 @@
+# mjcrypbot-scorecard
