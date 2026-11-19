@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scorecard">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>MJcrypbot Scorecard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: exchange-app shell. Sticky header, one scrolling column of cards, fixed bottom tab bar. Dark first (Binance), light alternative. */
+:root{
+  --bg:#0b0e11; --panel:#181a20; --panel2:#1e2329; --line:#2b3139;
+  --fg:#eaecef; --fg2:#b7bdc6; --fg3:#848e9c;
+  --gold:#f0b90b; --gold-ink:#181a20; --gold-soft:rgba(240,185,11,.14);
+  --up:#0ecb81; --up-soft:rgba(14,203,129,.14);
+  --down:#f6465d; --down-soft:rgba(246,70,93,.14);
+  --blue:#3d8bfd; --blue-soft:rgba(61,139,253,.15);
+  --grey-soft:rgba(132,142,156,.16);
+  --sans:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#f5f5f5; --panel:#ffffff; --panel2:#fafafa; --line:#eaecef;
+  --fg:#1e2329; --fg2:#474d57; --fg3:#707a8a;
+  --gold:#f0b90b; --gold-ink:#1e2329; --gold-soft:rgba(240,185,11,.18);
+  --up:#03a66d; --up-soft:rgba(3,166,109,.12);
+  --down:#cf304a; --down-soft:rgba(207,48,74,.10);
+  --blue:#1f6fe0; --blue-soft:rgba(31,111,224,.10);
+  --grey-soft:rgba(112,122,138,.14);
+  color-scheme:light;
+}}
+:root[data-theme="light"]{
+  --bg:#f5f5f5; --panel:#ffffff; --panel2:#fafafa; --line:#eaecef;
+  --fg:#1e2329; --fg2:#474d57; --fg3:#707a8a;
+  --gold:#f0b90b; --gold-ink:#1e2329; --gold-soft:rgba(240,185,11,.18);
+  --up:#03a66d; --up-soft:rgba(3,166,109,.12);
+  --down:#cf304a; --down-soft:rgba(207,48,74,.10);
+  --blue:#1f6fe0; --blue-soft:rgba(31,111,224,.10);
+  --grey-soft:rgba(112,122,138,.14);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:640px;margin:0 auto}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;
+  display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);margin-inline:-4px;padding-inline:4px}
+.logo{width:40px;height:40px;flex:none;display:block}
+.logo svg{width:100%;height:100%;display:block}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+header .sub{font-size:12px;color:var(--fg3)}
+header .grow{flex:1;min-width:0}
+
+.view{display:flex;flex-direction:column;gap:14px;padding-top:14px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{background:var(--panel);border-radius:12px;padding:12px 10px;min-width:0}
+.tile .k{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.6px}
+.tile .v{font-size:22px;font-weight:600;margin-top:2px}
+.tile .s{font-size:11px;color:var(--fg3)}
+.tile.hi{background:var(--gold-soft)}
+.tile.hi .v{color:var(--gold)}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 14px;font-size:13px;font-weight:500;color:var(--fg2)}
+.chip[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
+.row{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.lbl{font-size:12px;color:var(--fg3)}
+select{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}
+
+.list{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--panel);border-radius:14px;overflow:hidden;border:1px solid transparent}
+.card.trade{border-color:var(--up)}
+.card button.head{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:14px;cursor:pointer}
+.card .name{font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.side{font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;letter-spacing:.4px}
+.side.LONG{background:var(--up-soft);color:var(--up)}
+.side.SHORT{background:var(--down-soft);color:var(--down)}
+.pill{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;align-self:start}
+.pill.trade{background:var(--up);color:#fff}
+.pill.brake{background:var(--down-soft);color:var(--down)}
+.pill.market{background:var(--blue-soft);color:var(--blue)}
+.pill.wait{background:var(--gold-soft);color:var(--gold)}
+.pill.watch{background:var(--grey-soft);color:var(--fg2)}
+.big{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.big .r{font-size:26px;font-weight:600}
+.big .meta{font-size:12px;color:var(--fg3)}
+.pos{color:var(--up)} .neg{color:var(--down)} .zero{color:var(--fg2)}
+.flip{font-size:11px;font-weight:600;color:var(--gold);margin-left:auto}
+
+.detail{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.metric{display:grid;grid-template-columns:78px 1fr 58px;align-items:center;gap:10px}
+.metric .ml{font-size:12px;color:var(--fg3)}
+.metric .mv{text-align:right;font-size:13px}
+.track{position:relative;height:8px;background:var(--panel2);border-radius:4px;border:1px solid var(--line)}
+.track .zero{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--fg3)}
+.track .fill{position:absolute;top:0;bottom:0;border-radius:4px}
+.track .gate{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--gold);border-radius:1px}
+.checks{display:flex;flex-direction:column;gap:4px;background:var(--panel2);border-radius:10px;padding:10px 12px;font-size:13px}
+.checks div{display:flex;gap:8px}
+.checks .ok{color:var(--up);font-weight:700;width:14px;flex:none}
+.checks .no{color:var(--down);font-weight:700;width:14px;flex:none}
+.verdict{font-size:13px;color:var(--fg2)}
+
+.panel{background:var(--panel);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.panel h2{font-size:16px;margin:0;font-weight:600}
+.panel p{margin:0;font-size:13px;color:var(--fg2)}
+.slider{display:flex;flex-direction:column;gap:6px}
+.slider .top{display:flex;justify-content:space-between;align-items:baseline}
+.slider .top span:first-child{font-size:14px;font-weight:500}
+.slider .top .val{color:var(--gold);font-weight:600}
+.slider .hint{font-size:12px;color:var(--fg3)}
+input[type=range]{width:100%;accent-color:var(--gold);height:28px}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.switch{position:relative;width:46px;height:28px;flex:none}
+.switch input{opacity:0;position:absolute;inset:0;margin:0;cursor:pointer}
+.switch span{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .15s}
+.switch span::after{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .15s}
+.switch input:checked+span{background:var(--gold)}
+.switch input:checked+span::after{transform:translateX(18px)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:none;border-radius:10px;padding:11px 16px;font-weight:600;font-size:14px;background:var(--panel2);border:1px solid var(--line)}
+.btn.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.btn:active{transform:scale(.98)}
+pre.cfg{margin:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:var(--mono);font-size:13px;overflow-x:auto;white-space:pre}
+.diff{font-size:13px;display:flex;flex-direction:column;gap:6px}
+.diff div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.banner{background:var(--gold-soft);color:var(--fg);border-radius:10px;padding:10px 12px;font-size:13px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+textarea{width:100%;min-height:180px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;font-family:var(--mono);font-size:12px;resize:vertical}
+.msg{font-size:13px;min-height:1.2em}
+.msg.ok{color:var(--up)} .msg.err{color:var(--down)}
+ol.steps{margin:0;padding-left:20px;font-size:13px;color:var(--fg2);display:flex;flex-direction:column;gap:4px}
+.legend{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;font-size:13px;color:var(--fg2);align-items:center}
+
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--panel);border-top:1px solid var(--line);
+  padding:6px max(16px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;justify-content:center}
+nav .in{display:grid;grid-template-columns:repeat(3,1fr);max-width:640px;width:100%}
+nav button{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:11px;font-weight:500;color:var(--fg3);border-radius:10px}
+nav button svg{width:22px;height:22px}
+nav button[aria-current="page"]{color:var(--gold)}
+nav button:focus-visible{outline:2px solid var(--gold)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true"><svg id="appIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <defs>
+        <linearGradient id="ibg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e2329"/><stop offset="1" stop-color="#0b0e11"/></linearGradient>
+        <filter id="iglow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#ibg)"/>
+      <g fill="none" stroke="#f0b90b" stroke-width="2.2" stroke-linecap="round" filter="url(#iglow)">
+        <path d="M8 17V8h9M47 8h9v9M56 47v9h-9M17 56H8v-9"/>
+      </g>
+      <g fill="#f0b90b" filter="url(#iglow)">
+        <rect x="18" y="12" width="4" height="3" rx="1"/><rect x="24" y="12" width="4" height="3" rx="1"/><rect x="30" y="12" width="4" height="3" rx="1"/><rect x="36" y="12" width="4" height="3" rx="1" opacity=".35"/><rect x="42" y="12" width="4" height="3" rx="1" opacity=".35"/>
+      </g>
+      <g filter="url(#iglow)">
+        <g fill="#0ecb81"><rect x="15" y="46" width="9" height="4" rx="1"/><rect x="15" y="40" width="9" height="4" rx="1"/><rect x="15" y="34" width="9" height="4" rx="1"/><rect x="15" y="28" width="9" height="4" rx="1"/><rect x="15" y="22" width="9" height="4" rx="1"/></g>
+        <g fill="#f0b90b"><rect x="27.5" y="46" width="9" height="4" rx="1"/><rect x="27.5" y="40" width="9" height="4" rx="1"/><rect x="27.5" y="34" width="9" height="4" rx="1"/></g>
+        <g fill="#f6465d"><rect x="40" y="46" width="9" height="4" rx="1"/><rect x="40" y="40" width="9" height="4" rx="1"/></g>
+      </g>
+      <g fill="#2b3139"><rect x="27.5" y="28" width="9" height="4" rx="1"/><rect x="27.5" y="22" width="9" height="4" rx="1"/><rect x="40" y="34" width="9" height="4" rx="1"/><rect x="40" y="28" width="9" height="4" rx="1"/><rect x="40" y="22" width="9" height="4" rx="1"/></g>
+      <rect x="13" y="52.5" width="38" height="1.6" rx=".8" fill="#f0b90b" opacity=".6"/>
+    </svg></div>
+    <div class="grow">
+      <h1>MJcrypbot Scorecard</h1>
+      <div class="sub" id="stamp">From /score</div>
+    </div>
+  </header>
+
+  <!-- SCORECARD -->
+  <section class="view" id="v-score">
+    <div class="tiles">
+      <div class="tile hi"><div class="k">Trade signals</div><div class="v num" id="tTrade">0</div><div class="s" id="tTradeS">types passing</div></div>
+      <div class="tile"><div class="k">All LONG</div><div class="v num" id="tLong">+0.00</div><div class="s num" id="tLongN">0 results</div></div>
+      <div class="tile"><div class="k">All SHORT</div><div class="v num" id="tShort">+0.00</div><div class="s num" id="tShortN">0 results</div></div>
+    </div>
+    <div class="banner" id="whatifBanner" hidden>
+      <span>Showing <b>what-if gates</b>, not the bot's current settings.</span>
+      <button class="btn" id="bannerReset" style="padding:6px 12px">Back to bot gates</button>
+    </div>
+    <div class="chips" role="group" aria-label="Filter">
+      <button class="chip" data-f="all" aria-pressed="true">All</button>
+      <button class="chip" data-f="trade" aria-pressed="false">✅ Trade</button>
+      <button class="chip" data-f="LONG" aria-pressed="false">Long</button>
+      <button class="chip" data-f="SHORT" aria-pressed="false">Short</button>
+      <button class="chip" data-f="watch" aria-pressed="false">Watch only</button>
+    </div>
+    <div class="row">
+      <span class="lbl" id="countLbl"></span>
+      <label class="lbl">Sort
+        <select id="sort">
+          <option value="status">Best status first</option>
+          <option value="avg">Avg R</option>
+          <option value="l20">Latest 20</option>
+          <option value="edge">Edge</option>
+        </select>
+      </label>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="panel">
+      <h2>What the marks mean</h2>
+      <div class="legend">
+        <span class="pill trade">✅ Trade</span><span>Passes every gate. Sent as a trade signal.</span>
+        <span class="pill brake">🛑 Brake</span><span>Good record, but its latest 20 are weak. Watch only.</span>
+        <span class="pill market">🌊 Market</span><span>Positive, but no better than all alerts on that side. Watch only.</span>
+        <span class="pill wait">⏳ Building</span><span>Looks good, not enough results yet.</span>
+        <span class="pill watch">❌ Watch</span><span>No edge. Watch only.</span>
+      </div>
+      <p>Tap any card to see which gates it passes. Edge = this type's average minus all alerts on the same side over the same days.</p>
+    </div>
+  </section>
+
+  <!-- WHAT-IF -->
+  <section class="view" id="v-whatif" hidden>
+    <div class="panel">
+      <h2>What-if gates</h2>
+      <p>Move the sliders to see which alert types would become trade signals. This does not change the bot. To use new gates, copy the lines at the bottom into settings.txt and restart the bot.</p>
+      <div class="slider">
+        <div class="top"><span>Minimum results</span><span class="val num" id="vN">30</span></div>
+        <input type="range" id="gN" min="10" max="60" step="5" value="30">
+        <div class="hint">How many finished results a type needs before it can be trusted.</div>
+      </div>
+      <div class="slider">
+        <div class="top"><span>Minimum average</span><span class="val num" id="vA">+0.10R</span></div>
+        <input type="range" id="gA" min="0" max="0.40" step="0.01" value="0.10">
+        <div class="hint">Must cover fees and slippage. The brake uses this number too.</div>
+      </div>
+      <div class="slider">
+        <div class="top"><span>Minimum edge</span><span class="val num" id="vE">+0.10R</span></div>
+        <input type="range" id="gE" min="0" max="0.30" step="0.01" value="0.10">
+        <div class="hint">How much better than all alerts on the same side. Stops a falling market from faking a good short record.</div>
+      </div>
+      <div class="toggle">
+        <div><div style="font-weight:500">Fast brake (latest 20)</div><div class="hint lbl">Mute a type when its latest 20 results average below the minimum.</div></div>
+        <label class="switch"><input type="checkbox" id="gB" checked aria-label="Fast brake"><span></span></label>
+      </div>
+      <div class="btns">
+        <button class="btn" id="bReset">Reset to bot gates</button>
+        <button class="btn" id="bSee">See the result</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Changes with these gates</h2>
+      <div class="diff" id="diff"></div>
+    </div>
+    <div class="panel">
+      <h2>settings.txt lines</h2>
+      <pre class="cfg" id="cfg"></pre>
+      <div class="btns"><button class="btn primary" id="bCopyCfg">Copy lines</button></div>
+      <div class="msg" id="cfgMsg" role="status"></div>
+    </div>
+  </section>
+
+  <!-- UPDATE -->
+  <section class="view" id="v-update" hidden>
+    <div class="panel">
+      <h2>Update from Telegram</h2>
+      <ol class="steps">
+        <li>Send <b>/score</b> to the bot.</li>
+        <li>Long-press the reply and choose Copy.</li>
+        <li>Paste it below and tap Update.</li>
+      </ol>
+      <label for="paste" class="lbl">Scorecard text</label>
+      <textarea id="paste" placeholder="🏁 Scorecard: live results per alert type and side…"></textarea>
+      <div class="btns">
+        <button class="btn primary" id="bParse">Update scorecard</button>
+        <button class="btn" id="bClear">Clear</button>
+      </div>
+      <div class="msg" id="pMsg" role="status"></div>
+      <p>The numbers stay saved in this phone's browser. Other people opening the link see the example from 19 Nov until they paste their own.</p>
+    </div>
+    <div class="panel">
+      <h2>Add to your home screen</h2>
+      <ol class="steps">
+        <li><b>Android (Chrome):</b> open this page in Chrome, tap ⋮, then <b>Add to Home screen</b>.</li>
+        <li><b>iPhone (Safari):</b> tap the Share button, then <b>Add to Home Screen</b>.</li>
+      </ol>
+      <p>It opens like an app and keeps the last scorecard you pasted.</p>
+    </div>
+  </section>
+</div>
+
+<nav aria-label="Sections"><div class="in">
+  <button data-v="score" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Scorecard</button>
+  <button data-v="whatif"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>What-if</button>
+  <button data-v="update"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>Update</button>
+</div></nav>
+
+<script>
+// Example: the user's /score reply of 19 Nov 2026, 20:21
+const SAMPLE = {
+  stamp: "19 Nov 2026, 20:21 (example)",
+  base: {LONG:{avg:.06,n:302}, SHORT:{avg:.07,n:301}},
+  rows: [
+    {t:"BREAKDOWN",s:"LONG",n:60,avg:.35,edge:.18,l20:.62,tp:50},
+    {t:"NEWS + PRICE",s:"SHORT",n:54,avg:.38,edge:.12,l20:-.53,tp:54},
+    {t:"BREAKOUT",s:"LONG",n:60,avg:.15,edge:.06,l20:.50,tp:40},
+    {t:"BIG DUMP",s:"LONG",n:60,avg:.12,edge:.02,l20:.25,tp:43},
+    {t:"MANUAL",s:"SHORT",n:7,avg:.51,edge:.15,l20:.51,tp:43},
+    {t:"MANUAL",s:"LONG",n:7,avg:.07,edge:.31,l20:.07,tp:43},
+    {t:"BIG PUMP",s:"SHORT",n:60,avg:.04,edge:.05,l20:-.25,tp:42},
+    {t:"BREAKOUT",s:"SHORT",n:60,avg:.00,edge:.16,l20:.25,tp:40},
+    {t:"BIG DUMP",s:"SHORT",n:60,avg:-.01,edge:-.03,l20:-.38,tp:33},
+    {t:"BIG PUMP",s:"LONG",n:60,avg:-.07,edge:-.03,l20:.12,tp:35},
+    {t:"BREAKDOWN",s:"SHORT",n:60,avg:-.07,edge:-.00,l20:-.12,tp:33},
+    {t:"NEWS + PRICE",s:"LONG",n:55,avg:-.29,edge:-.15,l20:.00,tp:27}
+  ]
+};
+const BOT = {N:30, A:0.10, E:0.10, B:true};   // the bot's settings.txt defaults
+const KEY = "mjcrypbot-scorecard-v1";
+const $ = id => document.getElementById(id);
+const fmt = v => (v > 0 ? "+" : v < 0 ? "−" : "+") + Math.abs(v).toFixed(2);
+const cls = v => v > 0.004 ? "pos" : v < -0.004 ? "neg" : "zero";
+
+let data = SAMPLE;
+try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && s.rows && s.rows.length) data = s; } catch (e) {}
+let gates = {...BOT}, filter = "all", open = new Set();
+
+// Same rules as scorecard() / _score_mark() in run.py
+function judge(r, g) {
+  const braked = g.B && r.n >= 20 && r.l20 < g.A;
+  const proven = r.n >= g.N && r.avg >= g.A && r.edge >= g.E && !braked;
+  let mark;
+  if (proven) mark = "trade";
+  else if (braked && r.avg >= g.A) mark = "brake";
+  else if (r.n >= g.N && r.avg >= g.A) mark = "market";
+  else if (r.n < g.N && r.avg >= g.A) mark = "wait";
+  else mark = "watch";
+  return {mark, braked, proven};
+}
+const PILL = {trade:"✅ Trade", brake:"🛑 Brake", market:"🌊 Market", wait:"⏳ Building", watch:"❌ Watch"};
+const RANK = {trade:0, brake:1, market:2, wait:3, watch:4};
+const isWhatIf = () => gates.N !== BOT.N || Math.abs(gates.A - BOT.A) > 1e-9 || Math.abs(gates.E - BOT.E) > 1e-9 || gates.B !== BOT.B;
+
+function bar(v, gate) {
+  const c = Math.max(-1, Math.min(1, v));            // scale −1R … +1R
+  const w = Math.abs(c) * 50;
+  const pos = c >= 0 ? `left:50%;width:${w}%;background:var(--up)` : `right:50%;width:${w}%;background:var(--down)`;
+  const g = gate == null ? "" : `<i class="gate" style="left:calc(${50 + Math.max(-1, Math.min(1, gate)) * 50}% - 1px)" title="gate"></i>`;
+  return `<div class="track"><i class="zero"></i><i class="fill" style="${pos}"></i>${g}</div>`;
+}
+function checks(r, g, j) {
+  const items = [
+    [r.n >= g.N, `${r.n} results (needs ${g.N}+)`],
+    [r.avg >= g.A, `Average ${fmt(r.avg)}R (needs ${fmt(g.A)}R)`],
+    [r.edge >= g.E, `Edge ${fmt(r.edge)}R over all ${r.s} alerts (needs ${fmt(g.E)}R)`],
+  ];
+  if (g.B) items.push([!j.braked, r.n < 20 ? `Latest 20: not enough results yet` : `Latest 20 average ${fmt(r.l20)}R (needs ${fmt(g.A)}R)`]);
+  return items.map(([ok, t]) => `<div><span class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"}</span><span>${t}</span></div>`).join("");
+}
+function verdictText(r, j) {
+  return {
+    trade: "Sent as a trade signal with Execute buttons.",
+    brake: "Good overall record, but its recent results are weak, so it is muted until they recover.",
+    market: "The average is positive, but most of it is the market's direction, not this setup.",
+    wait: "Looks good so far. It needs more results before the bot trusts it.",
+    watch: "No reliable edge. Alerts still arrive, marked watch only."
+  }[j.mark];
+}
+
+function renderScore() {
+  const rows = data.rows.map((r, i) => ({...r, i, j: judge(r, gates), jb: judge(r, BOT)}));
+  const trades = rows.filter(r => r.j.mark === "trade").length;
+  $("tTrade").textContent = trades;
+  $("tTradeS").textContent = trades === 1 ? "type passing" : "types passing";
+  for (const s of ["LONG", "SHORT"]) {
+    const b = data.base && data.base[s];
+    const el = $(s === "LONG" ? "tLong" : "tShort");
+    el.textContent = b ? fmt(b.avg) + "R" : "–"; el.className = "v num " + (b ? cls(b.avg) : "");
+    $(s === "LONG" ? "tLongN" : "tShortN").textContent = b ? b.n + " results" : "";
+  }
+  $("stamp").textContent = "From /score · " + data.stamp;
+  $("whatifBanner").hidden = !isWhatIf();
+
+  let shown = rows.filter(r => filter === "all" ? true : filter === "trade" ? r.j.mark === "trade"
+    : filter === "watch" ? r.j.mark !== "trade" : r.s === filter);
+  const key = $("sort").value;
+  shown.sort((a, b) => key === "status" ? (RANK[a.j.mark] - RANK[b.j.mark]) || (b.avg - a.avg) : b[key] - a[key]);
+  $("countLbl").textContent = `${shown.length} of ${rows.length} alert types`;
+
+  $("list").innerHTML = shown.length ? shown.map(r => {
+    const id = r.t + "|" + r.s, isOpen = open.has(id);
+    const flip = isWhatIf() && r.j.mark !== r.jb.mark ? `<span class="flip">was ${PILL[r.jb.mark]}</span>` : "";
+    return `<article class="card ${r.j.mark === "trade" ? "trade" : ""}">
+      <button class="head" data-id="${id}" aria-expanded="${isOpen}">
+        <span class="name">${r.t} <span class="side ${r.s}">${r.s}</span></span>
+        <span class="pill ${r.j.mark}">${PILL[r.j.mark]}</span>
+        <span class="big"><span class="r num ${cls(r.avg)}">${fmt(r.avg)}R</span>
+          <span class="meta num">avg · ${r.n} results · TP1 first ${r.tp}%</span>${flip}</span>
+      </button>
+      ${isOpen ? `<div class="detail">
+        <div class="metric"><span class="ml">Average</span>${bar(r.avg, gates.A)}<span class="mv num ${cls(r.avg)}">${fmt(r.avg)}</span></div>
+        <div class="metric"><span class="ml">Latest 20</span>${bar(r.l20, gates.B ? gates.A : null)}<span class="mv num ${cls(r.l20)}">${fmt(r.l20)}</span></div>
+        <div class="metric"><span class="ml">Edge</span>${bar(r.edge, gates.E)}<span class="mv num ${cls(r.edge)}">${fmt(r.edge)}</span></div>
+        <div class="checks">${checks(r, gates, r.j)}</div>
+        <div class="verdict">${verdictText(r, r.j)} <span class="lbl">Gold tick = gate.</span></div>
+      </div>` : ""}
+    </article>`;
+  }).join("") : `<div class="panel"><p>No alert types match this filter.</p></div>`;
+}
+
+function renderWhatIf() {
+  $("vN").textContent = gates.N;
+  $("vA").textContent = fmt(gates.A) + "R";
+  $("vE").textContent = fmt(gates.E) + "R";
+  const ch = data.rows.map(r => ({r, now: judge(r, gates).mark, was: judge(r, BOT).mark})).filter(x => x.now !== x.was);
+  $("diff").innerHTML = ch.length ? ch.map(x =>
+    `<div><b>${x.r.t}</b> <span class="side ${x.r.s}">${x.r.s}</span> <span class="pill ${x.was}">${PILL[x.was]}</span> → <span class="pill ${x.now}">${PILL[x.now]}</span></div>`).join("")
+    : `<p>No change. These gates give the same result as the bot's current settings.</p>`;
+  const n = data.rows.filter(r => judge(r, gates).mark === "trade").length;
+  $("diff").insertAdjacentHTML("beforeend", `<p>${n} alert type${n === 1 ? "" : "s"} would be sent as trade signals.</p>`);
+  $("cfg").textContent = `PROOF_MIN_N=${gates.N}\nPROOF_MIN_AVG=${gates.A.toFixed(2)}\nPROOF_MIN_EDGE=${gates.E.toFixed(2)}\nPROOF_BRAKE_N=${gates.B ? 20 : 0}`;
+}
+function render() { renderScore(); renderWhatIf(); }
+
+// Parse the bot's /score text
+function parse(text) {
+  const rows = [], base = {};
+  const reRow = /(✅|🛑|🌊|⏳|❌)\s*(.+?)\s+(LONG|SHORT):\s*(\d+)\s+results?,\s*avg\s*([+\-−]?\d*\.?\d+)R,\s*edge\s*([+\-−]?\d*\.?\d+)R(?:,\s*last\s*\d+\s*([+\-−]?\d*\.?\d+)R)?(?:,\s*TP1 first\s*(\d+)%)?/;
+  const reBase = /All\s+(LONG|SHORT)\s+alerts together:\s*([+\-−]?\d*\.?\d+)R\s*\((\d+)\s+results?\)/i;
+  const num = s => parseFloat(String(s).replace("−", "-"));
+  for (const line of text.split(/\r?\n/)) {
+    let m = line.match(reBase);
+    if (m) { base[m[1].toUpperCase()] = {avg: num(m[2]), n: +m[3]}; continue; }
+    m = line.match(reRow);
+    if (m) rows.push({t: m[2].trim(), s: m[3], n: +m[4], avg: num(m[5]), edge: num(m[6]),
+      l20: m[7] != null ? num(m[7]) : num(m[5]), tp: m[8] != null ? +m[8] : 0});
+  }
+  return {rows, base};
+}
+
+// Events
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+  filter = c.dataset.f;
+  document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === c));
+  renderScore();
+}));
+$("sort").addEventListener("change", renderScore);
+$("list").addEventListener("click", e => {
+  const b = e.target.closest("button.head"); if (!b) return;
+  const id = b.dataset.id; open.has(id) ? open.delete(id) : open.add(id); renderScore();
+});
+function readGates() {
+  gates = {N: +$("gN").value, A: +$("gA").value, E: +$("gE").value, B: $("gB").checked};
+  render();
+}
+["gN", "gA", "gE"].forEach(id => $(id).addEventListener("input", readGates));
+$("gB").addEventListener("change", readGates);
+function resetGates() {
+  $("gN").value = BOT.N; $("gA").value = BOT.A; $("gE").value = BOT.E; $("gB").checked = BOT.B; readGates();
+}
+$("bReset").addEventListener("click", resetGates);
+$("bannerReset").addEventListener("click", resetGates);
+$("bSee").addEventListener("click", () => show("score"));
+$("bCopyCfg").addEventListener("click", () => {
+  const t = $("cfg").textContent;
+  const done = () => { $("cfgMsg").textContent = "Copied. Paste over the same lines in settings.txt, then restart the bot."; $("cfgMsg").className = "msg ok"; };
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents($("cfg")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    $("cfgMsg").textContent = "Selected. Use your phone's Copy."; $("cfgMsg").className = "msg"; };
+  try { navigator.clipboard.writeText(t).then(done, fallback); } catch (e) { fallback(); }
+});
+$("bParse").addEventListener("click", () => {
+  const p = parse($("paste").value);
+  if (!p.rows.length) { $("pMsg").textContent = "No scorecard lines found. Paste the whole /score reply, starting with 🏁 Scorecard."; $("pMsg").className = "msg err"; return; }
+  const d = new Date();
+  data = {stamp: d.toLocaleString(undefined, {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}), base: p.base, rows: p.rows};
+  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+  $("pMsg").textContent = `Updated: ${p.rows.length} alert types.`; $("pMsg").className = "msg ok";
+  open.clear(); render();
+  setTimeout(() => show("score"), 600);
+});
+$("bClear").addEventListener("click", () => { $("paste").value = ""; $("pMsg").textContent = ""; });
+
+function show(v) {
+  for (const k of ["score", "whatif", "update"]) $("v-" + k).hidden = k !== v;
+  document.querySelectorAll("nav button").forEach(b => b.dataset.v === v ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => show(b.dataset.v)));
+render();
+
+</script>
+
+</body>
+</html>
